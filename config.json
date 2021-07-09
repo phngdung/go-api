@@ -1,0 +1,6 @@
+{
+    "mailFrom": "phngdung@yandex.com",
+    "mailPass": "abcD123$",
+    "mailPort": "587",
+    "mailHost": "smtp.yandex.com"
+  }
