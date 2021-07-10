@@ -12,4 +12,6 @@ type User struct {
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
+	VerifyCode  string    `json:"verifyCode"`
+	VerifyExp   time.Time `json:"verifyExp"`
 }

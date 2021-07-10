@@ -71,7 +71,7 @@ func Login(c *gin.Context) {
 
 }
 
-func MailVerify(c *gin.Context) {
+func VerifyEmail(c *gin.Context) {
 
 	var user models.User
 	email := c.PostForm("email")
@@ -82,17 +82,39 @@ func MailVerify(c *gin.Context) {
 		})
 		return
 	}
-	utils.Send(user.Email, "Verify Your Email Address", "Click here to verify:\n http://localhost:8080/auth/verify/"+email)
+
+	if err := database.DB.Model(&user).Where("email = ?", email).Updates(models.User{VerifyCode: utils.RandStringBytes(8), VerifyExp: time.Now().Add(time.Hour * 3)}); err != nil {
+		fmt.Print(err)
+		c.JSON(404, gin.H{
+			"message": "Error",
+		})
+	}
+
+	utils.Send(user.Email, "Verify Your Email Address", "Click here to verify:\n http://localhost:8080/auth/verify/"+email+"/code/"+user.VerifyCode)
 
 }
-func VerifyEmail(c *gin.Context) {
+func Verify(c *gin.Context) {
 
 	var user models.User
 	email := c.Param("email")
+	code := c.Param("verifyCode")
 	database.DB.Where("email = ?", email).Find(&user)
 	if user.Email == "" {
 		c.JSON(404, gin.H{
 			"message": "User not found",
+		})
+		return
+	}
+	if user.Status == "verified" {
+		c.JSON(404, gin.H{
+			"message": "User verified",
+		})
+		return
+	}
+	if user.VerifyCode != code || user.VerifyExp.Before(time.Now()) {
+		fmt.Print(user.VerifyCode, code, user.VerifyExp.Before(time.Now()))
+		c.JSON(404, gin.H{
+			"message": "Cannot Verify",
 		})
 		return
 	}
