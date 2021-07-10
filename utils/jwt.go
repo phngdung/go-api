@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"fmt"
 	"os"
 	"time"
 
@@ -20,17 +19,4 @@ func CreateJWT(email string) (string, error) {
 type Claims struct {
 	Username string `json:"username"`
 	jwt.StandardClaims
-}
-
-func ParseJWTToken(tokenString string) string {
-	// claim := jwt.MapClaims{}
-	token, err := jwt.ParseWithClaims(tokenString, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(os.Getenv("SECRET_JWT")), nil
-	})
-	if err != nil {
-		fmt.Print(err)
-	}
-
-	claims := token.Claims.(*jwt.StandardClaims)
-	return claims.Issuer
 }

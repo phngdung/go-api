@@ -2,26 +2,24 @@ package controllers
 
 import (
 	"fmt"
+	"os"
 	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 	"main.go/database"
 	"main.go/models"
 	"main.go/utils"
 )
 
-// r.POST("/auth/register", func(c *gin.Context) {
 func Register(c *gin.Context) {
 	var user models.User
 	email := c.PostForm("email")
 	password := c.PostForm("password")
 	phone := c.PostForm("phone")
 	useraddress := c.PostForm("useraddress")
-	// password, _ := bcrypt.GenerateFromPassword([]byte(data["password"]), 14)
-	// _, err := database.DB.Query("Insert into users values ($1 ,$2, $3, )", email, password, phone)
-	// if err != nil {
-	// 	log.Fatal("Query error: ", err)
-	// }
+	pw, _ := bcrypt.GenerateFromPassword([]byte(password), 14)
 	database.DB.Where("email = ?", email).Find(&user)
 	fmt.Print(user.Email)
 	if user.Email != "" {
@@ -32,7 +30,7 @@ func Register(c *gin.Context) {
 	}
 	user = models.User{
 		Email:       email,
-		Password:    password,
+		Password:    string(pw),
 		Phone:       phone,
 		Useraddress: useraddress,
 		Status:      "notVerfied",
@@ -46,49 +44,34 @@ func Register(c *gin.Context) {
 
 }
 
-// r.GET("/get", func(c *gin.Context) {
-// 	name, err := database.DB.Query("SELECT name FROM test WHERE id = 1")
-// 	if err != nil {
-// 		log.Fatal("Query error: ", err)
-// 	}
-// 	c.JSON(200, gin.H{
-// 		"message": "name",
-// 	})
-// })
-
 func Login(c *gin.Context) {
-	// r.POST("/auth/login", func(c *gin.Context) {
 
 	var user models.User
 	email := c.PostForm("email")
 	password := c.PostForm("password")
 	database.DB.Where("email = ?", email).Find(&user)
-	// fmt.Print(user.Email, user.Password, password)
-	if user.Email == "" {
-		c.JSON(404, gin.H{
-			"message": "User not found",
-		})
-		return
-	}
+	check := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 
-	if user.Password == password {
-		token, _ := utils.CreateJWT(email)
-		c.JSON(200, gin.H{
-			"message": token,
-		})
-		return
-	}
-	if user.Password != password {
-
+	if check != nil {
 		c.JSON(404, gin.H{
-			"message": "Wrong password",
+			"message": "Email or Password incorrect",
 		})
 		return
 	}
+	token, err := utils.CreateJWT(email)
+	if err != nil {
+		c.JSON(404, gin.H{
+			"message": "Internal Server Error",
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"message": token,
+	})
+
 }
 
 func MailVerify(c *gin.Context) {
-	// r.POST("/auth/verifyEmail", func(c *gin.Context) {
 
 	var user models.User
 	email := c.PostForm("email")
@@ -103,7 +86,6 @@ func MailVerify(c *gin.Context) {
 
 }
 func VerifyEmail(c *gin.Context) {
-	// r.GET("/auth/verify/:email", func(c *gin.Context) {
 
 	var user models.User
 	email := c.Param("email")
@@ -125,7 +107,6 @@ func VerifyEmail(c *gin.Context) {
 	})
 }
 func GetProfile(c *gin.Context) {
-	// r.GET("/auth/profile/:email", func(c *gin.Context) {
 
 	var user models.User
 	email := c.Param("email")
@@ -142,15 +123,33 @@ func GetProfile(c *gin.Context) {
 
 }
 func Profile(c *gin.Context) {
+	// tokenString, _ := c.Cookie("ACCESS-KEY")
 
-	token := c.PostForm("token")
-	email := utils.ParseJWTToken(token)
-	// var user models.User
+	tokenString := c.PostForm("token")
+	var email string
+	type MyCustomClaims struct {
+		Email string `json:"email"`
+		jwt.StandardClaims
+	}
 
-	// database.DB.Where("email = ?", email).First(&user)
+	token, _ := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(os.Getenv("SECRET_JWT")), nil
+	})
 
+	if claims, ok := token.Claims.(*MyCustomClaims); ok && token.Valid {
+		email = claims.Email
+	}
+	var user models.User
+
+	database.DB.Where("email = ?", email).First(&user)
+	if user.Email == "" {
+		c.JSON(404, gin.H{
+			"message": "User not found",
+		})
+		return
+	}
 	c.JSON(200, gin.H{
-		"message": email,
+		"message": user,
 	})
 
 }
