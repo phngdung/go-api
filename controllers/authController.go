@@ -2,10 +2,8 @@ package controllers
 
 import (
 	"fmt"
-	"os"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"main.go/database"
@@ -145,25 +143,13 @@ func GetProfile(c *gin.Context) {
 
 }
 func Profile(c *gin.Context) {
-	// tokenString, _ := c.Cookie("ACCESS-KEY")
+	bearerToken := c.Request.Header.Get("Authorization")
 
-	tokenString := c.PostForm("token")
-	var email string
-	type MyCustomClaims struct {
-		Email string `json:"email"`
-		jwt.StandardClaims
-	}
-
-	token, _ := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(os.Getenv("SECRET_JWT")), nil
-	})
-
-	if claims, ok := token.Claims.(*MyCustomClaims); ok && token.Valid {
-		email = claims.Email
-	}
+	email := utils.ParseJWTToken(bearerToken)
 	var user models.User
 
 	database.DB.Where("email = ?", email).First(&user)
+
 	if user.Email == "" {
 		c.JSON(404, gin.H{
 			"message": "User not found",

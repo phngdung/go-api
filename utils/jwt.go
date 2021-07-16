@@ -2,6 +2,7 @@ package utils
 
 import (
 	"os"
+	"strings"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -19,4 +20,24 @@ func CreateJWT(email string) (string, error) {
 type Claims struct {
 	Username string `json:"username"`
 	jwt.StandardClaims
+}
+
+func ParseJWTToken(bearerToken string) string {
+
+	tokenString := strings.Split(bearerToken, " ")[1]
+
+	var email string
+	type MyCustomClaims struct {
+		Email string `json:"email"`
+		jwt.StandardClaims
+	}
+
+	token, _ := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(os.Getenv("SECRET_JWT")), nil
+	})
+	if claims, ok := token.Claims.(*MyCustomClaims); ok && token.Valid {
+		email = claims.Email
+	}
+	return email
+
 }
